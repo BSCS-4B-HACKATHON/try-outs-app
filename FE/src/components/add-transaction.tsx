@@ -12,52 +12,71 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { signAndRelayTransaction } from "@/blockchain/signAndRelayTx";
 
-const tokens = [
-  { symbol: "ETH", name: "Ethereum", balance: "2.45" },
-  { symbol: "USDC", name: "USD Coin", balance: "1,250.00" },
-  { symbol: "USDT", name: "Tether", balance: "500.00" },
-  { symbol: "DAI", name: "Dai Stablecoin", balance: "750.25" },
+const currency = [
+  { symbol: "PHP", name: "Philippine Peso" },
+  { symbol: "USD", name: "US Dollar" },
+  { symbol: "EUR", name: "Euro" },
 ];
 
-const transactionTypes = [
-  { value: "send", label: "Send", icon: Send },
-  { value: "receive", label: "Receive", icon: ArrowUpDown },
-];
-
-export default function AddTransaction() {
+export default function AddTransaction({
+  setStatus,
+  refreshList,
+}: {
+  setStatus: React.Dispatch<React.SetStateAction<string>>;
+  refreshList(): Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    type: "",
     recipient: "",
+    senderName: "",
     amount: "",
-    token: "",
-    gasPrice: "21",
+    currency: "",
+    recipientName: "",
+    purpose: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const selectedToken = tokens.find((t) => t.symbol === formData.token);
-  const estimatedGasFee = (
-    Number.parseFloat(formData.gasPrice) * 0.000021
-  ).toFixed(6);
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
+    setLoading(true);
+    setStatus("Requesting signature in wallet...");
+    try {
+      const res = await signAndRelayTransaction(
+        "http://localhost:3000/api/blockchain/",
+        {
+          senderName: formData.senderName,
+          to: formData.recipient,
+          recipientName: formData.recipientName,
+          amount: formData.amount,
+          currency: formData.currency,
+          purpose: formData.purpose,
+        }
+      );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+      if (!res) throw new Error("No response from server");
 
-    // Simulate transaction submission
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      refreshList()
+        .then(() => setStatus("Transaction successful!"))
+        .catch(() => {});
 
-    // Reset form
-    setFormData({
-      type: "",
-      recipient: "",
-      amount: "",
-      token: "",
-      gasPrice: "21",
-    });
-    setIsSubmitting(false);
-  };
+      setFormData({
+        recipient: "",
+        senderName: "",
+        amount: "",
+        currency: "",
+        recipientName: "",
+        purpose: "",
+      });
+    } catch (err: any) {
+      setStatus("Failed: " + (err?.message ?? String(err)));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const selectedCurrency = currency.find((t) => t.symbol === formData.currency);
 
   const pasteFromClipboard = async () => {
     try {
@@ -71,66 +90,39 @@ export default function AddTransaction() {
   };
 
   const isFormValid =
-    formData.type && formData.recipient && formData.amount && formData.token;
+    formData.recipient &&
+    formData.amount &&
+    formData.currency &&
+    formData.recipientName &&
+    formData.senderName &&
+    formData.purpose;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label
-            htmlFor="type"
+            htmlFor="currency"
             className="text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            Transaction Type
+            Currency
           </Label>
           <Select
-            value={formData.type}
+            value={formData.currency}
             onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, type: value }))
+              setFormData((prev) => ({ ...prev, currency: value }))
             }
           >
             <SelectTrigger className="bg-gray-50 dark:bg-[#1A1A1E] border-gray-200 dark:border-[#2A2A2E]">
-              <SelectValue placeholder="Select type" />
+              <SelectValue placeholder="Select currency" />
             </SelectTrigger>
             <SelectContent>
-              {transactionTypes.map((type) => {
-                const Icon = type.icon;
-                return (
-                  <SelectItem key={type.value} value={type.value}>
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4" />
-                      {type.label}
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label
-            htmlFor="token"
-            className="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Token
-          </Label>
-          <Select
-            value={formData.token}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, token: value }))
-            }
-          >
-            <SelectTrigger className="bg-gray-50 dark:bg-[#1A1A1E] border-gray-200 dark:border-[#2A2A2E]">
-              <SelectValue placeholder="Select token" />
-            </SelectTrigger>
-            <SelectContent>
-              {tokens.map((token) => (
-                <SelectItem key={token.symbol} value={token.symbol}>
+              {currency.map((curr) => (
+                <SelectItem key={curr.symbol} value={curr.symbol}>
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-medium">{token.symbol}</span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      Balance: {token.balance}
+                    <span className="font-medium">{curr.symbol}</span>
+                    <span className="text-sm text-gray-500 ml-2 ml-2">
+                      {curr.name}
                     </span>
                   </div>
                 </SelectItem>
@@ -138,6 +130,41 @@ export default function AddTransaction() {
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-2">
+          <Label
+            htmlFor="senderName"
+            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Sender Name
+          </Label>
+          <Input
+            id="senderName"
+            type="text"
+            value={formData.senderName}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, senderName: e.target.value }))
+            }
+            className="bg-gray-50 dark:bg-[#1A1A1E] border-gray-200 dark:border-[#2A2A2E]"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="recipientName"
+          className="text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Recipient Name
+        </Label>
+        <Input
+          id="purpose"
+          type="text"
+          value={formData.recipientName}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, recipientName: e.target.value }))
+          }
+          className="bg-gray-50 dark:bg-[#1A1A1E] border-gray-200 dark:border-[#2A2A2E]"
+        />
       </div>
 
       <div className="space-y-2">
@@ -194,48 +221,40 @@ export default function AddTransaction() {
               }
               className="bg-gray-50 dark:bg-[#1A1A1E] border-gray-200 dark:border-[#2A2A2E] pr-16"
             />
-            {selectedToken && (
+            {selectedCurrency && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                {selectedToken.symbol}
+                {selectedCurrency.symbol}
               </span>
             )}
           </div>
-          {selectedToken && (
-            <p className="text-xs text-gray-500">
-              Available: {selectedToken.balance} {selectedToken.symbol}
-            </p>
-          )}
         </div>
 
         <div className="space-y-2">
           <Label
-            htmlFor="gasPrice"
+            htmlFor="purpose"
             className="text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            Gas Price (Gwei)
+            Purpose
           </Label>
           <Input
-            id="gasPrice"
-            type="number"
-            value={formData.gasPrice}
+            id="purpose"
+            type="text"
+            value={formData.purpose}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, gasPrice: e.target.value }))
+              setFormData((prev) => ({ ...prev, purpose: e.target.value }))
             }
             className="bg-gray-50 dark:bg-[#1A1A1E] border-gray-200 dark:border-[#2A2A2E]"
           />
-          <p className="text-xs text-gray-500">
-            Estimated fee: ~{estimatedGasFee} ETH
-          </p>
         </div>
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-[#2A2A2E]">
         <Button
           type="submit"
-          disabled={!isFormValid || isSubmitting}
+          disabled={!isFormValid || loading}
           className=" px-8"
         >
-          {isSubmitting ? (
+          {loading ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               Submitting...

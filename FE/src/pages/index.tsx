@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { connectWallet } from "../blockchain/contractActions";
-import { signAndRelayTransaction } from "../blockchain/signAndRelayTx";
+import { useEffect, useState } from "react";
+import { connectWallet, disconnectWallet } from "../blockchain/contractActions";
 import TopNav from "@/components/top-nav";
 import { Plus, Wallet } from "lucide-react";
 import TransactionHistory from "@/components/transaction-history";
@@ -12,7 +11,21 @@ const CONTRACT_ADDRESS =
 export default function Index() {
   const [account, setAccount] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
-  const [txs, setTxs] = useState<{ txHash: string; type: string }[]>([]);
+  const [txs, setTxs] = useState<
+    {
+      txHash: string;
+      type:
+        | "approveSender"
+        | "approveRecipient"
+        | "transferOwnership"
+        | "addTransaction";
+      amount: number;
+      currency: string;
+      from: string;
+      to: string;
+      createdAt: Date;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -88,29 +101,17 @@ export default function Index() {
     }
   }
 
-  async function handleSubmit(e?: React.FormEvent) {
-    e?.preventDefault();
-    setStatus("Requesting signature in wallet...");
+  async function handleDisconnect() {
     try {
-      const res = await signAndRelayTransaction(
-        "http://localhost:3000/api/blockchain/",
-        {
-          senderName: form.senderName,
-          to: form.to,
-          recipientName: form.recipientName,
-          amount: form.amount,
-          currency: form.currency,
-          purpose: form.purpose,
-        }
+      await disconnectWallet();
+      setAccount(null);
+      setStatus("Wallet disconnected");
+      window.location.reload();
+    } catch (error) {
+      console.error("Disconnect failed:", error);
+      setStatus(
+        "Disconnect failed: " + ((error as any)?.message ?? String(error))
       );
-
-      if (!res) throw new Error("No response from server");
-
-      refreshList()
-        .then(() => setStatus("Transaction successful!"))
-        .catch(() => {});
-    } catch (err: any) {
-      setStatus("Failed: " + (err?.message ?? String(err)));
     }
   }
 
@@ -118,7 +119,11 @@ export default function Index() {
     <div className="flex h-screen">
       <div className="w-full flex flex-1 flex-col">
         <header className="h-16 border-b border-gray-200 dark:border-[#1F1F23]">
-          <TopNav />
+          <TopNav
+            acc={account}
+            handleConnect={handleConnect}
+            handleDisconnect={handleDisconnect}
+          />
         </header>
         <main className="flex-1 overflow-auto p-6 bg-white dark:bg-[#0F0F12]">
           <div className="space-y-4">
@@ -128,14 +133,17 @@ export default function Index() {
                   <Wallet className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-50" />
                   Transaction History
                 </h2>
-                <TransactionHistory />
+                <TransactionHistory transactions={txs} />
               </div>
               <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 flex flex-col border border-gray-200 dark:border-[#1F1F23]">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 text-left flex items-center gap-2">
                   <Plus className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-50" />
                   Recent Transactions
                 </h2>
-                <AddTransaction />
+                <AddTransaction
+                  setStatus={setStatus}
+                  refreshList={refreshList}
+                />
               </div>
             </div>
           </div>

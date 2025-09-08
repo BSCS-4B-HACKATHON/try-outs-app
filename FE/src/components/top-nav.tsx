@@ -7,7 +7,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "./ui/button";
 
-export default function TopNav() {
+export default function TopNav({
+  acc,
+  handleConnect,
+  handleDisconnect,
+}: {
+  acc: string | null;
+  handleConnect(): Promise<void>;
+  handleDisconnect(): Promise<void>;
+}) {
   return (
     <nav className="px-3 sm:px-6 flex items-center justify-between bg-white dark:bg-[#0F0F12] border-b border-gray-200 dark:border-[#1F1F23] h-full">
       <a href="/">
@@ -19,7 +27,7 @@ export default function TopNav() {
       <div className="flex items-center gap-2 sm:gap-4 ml-auto sm:ml-0">
         <ThemeToggle />
 
-        {false ? (
+        {acc ? (
           <DropdownMenu>
             <DropdownMenuTrigger className="focus:outline-none">
               <img
@@ -35,11 +43,18 @@ export default function TopNav() {
               sideOffset={8}
               className="w-[280px] sm:w-80 bg-background border-border rounded-lg shadow-lg"
             >
-              <Profile avatar="https://ferf1mheo22r9ira.public.blob.vercel-storage.com/avatar-01-n0x8HFv8EUetf9z6ht0wScJKoTHqf8.png" />
+              <Profile
+                handleDisconnect={handleDisconnect}
+                name={acc || undefined}
+                avatar="https://ferf1mheo22r9ira.public.blob.vercel-storage.com/avatar-01-n0x8HFv8EUetf9z6ht0wScJKoTHqf8.png"
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button className="bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer">
+          <Button
+            onClick={handleConnect}
+            className="bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
+          >
             Connect Wallet
           </Button>
         )}

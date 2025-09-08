@@ -136,8 +136,32 @@ export default function AdminApprovals() {
             Approve
           </label>
 
-          <button type="submit">Submit</button>
-          <button type="button" onClick={refresh}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{
+              background: "#2563eb",
+              color: "#ffffff",
+              border: "none",
+              padding: "8px 12px",
+              borderRadius: 6,
+            }}
+          >
+            Submit
+          </button>
+          <button
+            type="button"
+            onClick={refresh}
+            className="btn"
+            style={{
+              background: "#f3f4f6",
+              color: "#111827",
+              border: "1px solid #d1d5db",
+              padding: "8px 12px",
+              borderRadius: 6,
+              marginLeft: 8,
+            }}
+          >
             Refresh lists
           </button>
         </div>

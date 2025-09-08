@@ -7,6 +7,10 @@ export interface txHashType {
     | "approveRecipient"
     | "transferOwnership"
     | "addTransaction";
+  amount: number;
+  currency: string;
+  from: string;
+  to: string;
 }
 
 const txHashSchema = new mongoose.Schema<txHashType>(
@@ -22,6 +26,10 @@ const txHashSchema = new mongoose.Schema<txHashType>(
       ],
       required: true,
     },
+    amount: { type: Number, required: false },
+    currency: { type: String, required: false },
+    from: { type: String, required: false },
+    to: { type: String, required: false },
   },
   { timestamps: true }
 );

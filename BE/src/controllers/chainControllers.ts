@@ -16,7 +16,6 @@ import {
   http,
   recoverMessageAddress,
 } from "viem";
-import abiJson from "../blockchain/artifacts/IrlContractLedger.json";
 import { TxHash } from "../models/txHash";
 
 const RPC_URL = process.env.RPC_URL || process.env.VITE_RPC_URL || "";
@@ -125,7 +124,14 @@ export async function relayAddTransactionHandler(req: Request, res: Response) {
 
     // save to DB
     if (txHash) {
-      await saveToDB("addTransaction", txHash);
+      await saveToDB(
+        "addTransaction",
+        txHash,
+        Number(payload.amount),
+        payload.currency,
+        signer,
+        payload.to
+      );
     }
 
     // return serializable result (no DB side-effects here)
@@ -244,9 +250,18 @@ export async function transferOwnershipHandler(req: Request, res: Response) {
 
 export async function getTransactionsHandler(_req: Request, res: Response) {
   try {
-    // read directly from the contract via your service helpers
     const transactions = await TxHash.find().sort({ createdAt: -1 }).limit(100);
-    return res.json({ ok: true, transactions });
+    // normalize so missing fields become null (instead of omitted)
+    const normalized = transactions.map((t: any) => ({
+      type: t.type ?? null,
+      txHash: t.txHash ?? null,
+      amount: typeof t.amount !== "undefined" ? t.amount : null,
+      currency: t.currency ?? null,
+      from: t.from ?? null,
+      to: t.to ?? null,
+      createdAt: t.createdAt ?? null,
+    }));
+    return res.json({ ok: true, transactions: normalized });
   } catch (error) {
     console.error("Error fetching transactions:", error);
     return res.status(500).json({ error: "Failed to fetch transactions" });
@@ -267,9 +282,23 @@ function convertBigInts(value: any): any {
   return value;
 }
 
-async function saveToDB(type: string, txHash: string) {
+async function saveToDB(
+  type: string,
+  txHash: string,
+  amount?: number,
+  currency?: string,
+  from?: string,
+  to?: string
+) {
   try {
-    const newTx = await TxHash.create({ type, txHash });
+    const newTx = await TxHash.create({
+      type,
+      txHash,
+      amount,
+      currency,
+      from,
+      to,
+    });
     if (!newTx) throw new Error("Failed to save txHash to DB");
     return newTx;
   } catch (error) {

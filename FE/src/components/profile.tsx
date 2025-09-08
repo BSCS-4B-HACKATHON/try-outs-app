@@ -19,6 +19,7 @@ interface Profile01Props {
   role: string;
   avatar: string;
   subscription?: string;
+  handleDisconnect(): Promise<void>;
 }
 
 const defaultProfile = {
@@ -27,6 +28,7 @@ const defaultProfile = {
   avatar:
     "https://ferf1mheo22r9ira.public.blob.vercel-storage.com/avatar-02-albo9B0tWOSLXCVZh9rX9KFxXIVWMr.png",
   subscription: "Free Trial",
+  handleDisconnect: async () => {},
 } satisfies Required<Profile01Props>;
 
 export default function Profile({
@@ -34,6 +36,7 @@ export default function Profile({
   role = defaultProfile.role,
   avatar = defaultProfile.avatar,
   subscription = defaultProfile.subscription,
+  handleDisconnect,
 }: Partial<Profile01Props> = defaultProfile) {
   const menuItems: MenuItem[] = [
     {
@@ -74,7 +77,9 @@ export default function Profile({
             {/* Profile Info */}
             <div className="flex-1">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                {name}
+                {name && name.length > 12
+                  ? `${name.slice(0, 8)}...${name.slice(-6)}`
+                  : name}
               </h2>
               <p className="text-zinc-600 dark:text-zinc-400">{role}</p>
             </div>
@@ -82,6 +87,7 @@ export default function Profile({
           <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-6" />
           <div className="space-y-2">
             <button
+              onClick={handleDisconnect}
               type="button"
               className="w-full flex items-center justify-between p-2 
                                 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 

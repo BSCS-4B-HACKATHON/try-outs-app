@@ -13,88 +13,38 @@ import { Badge } from "./ui/badge";
 import { useEffect, useRef, useState } from "react";
 
 interface Transaction {
-  id: string;
-  hash: string;
-  type: "send" | "receive" | "swap" | "approve";
-  status: "confirmed" | "pending" | "failed";
+  txHash: string;
+  type:
+    | "approveSender"
+    | "approveRecipient"
+    | "transferOwnership"
+    | "addTransaction";
+  amount: number;
+  currency: string;
   from: string;
   to: string;
-  amount: string;
-  token: string;
-  tokenSymbol: string;
-  gasUsed: string;
-  gasPrice: string;
-  blockNumber: number;
-  confirmations: number;
-  timestamp: Date;
-  network: string;
+  createdAt: Date;
 }
 
-// Mock transaction data
-const mockTransactions: Transaction[] = [
-  {
-    id: "1",
-    hash: "0x1234567890abcdef1234567890abcdef12345678",
-    type: "receive",
-    status: "confirmed",
-    from: "0xabcdef1234567890abcdef1234567890abcdef12",
-    to: "0x1234567890abcdef1234567890abcdef12345678",
-    amount: "2.5",
-    token: "ETH",
-    tokenSymbol: "ETH",
-    gasUsed: "21000",
-    gasPrice: "20",
-    blockNumber: 18500000,
-    confirmations: 12,
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    network: "Ethereum",
-  },
-  {
-    id: "2",
-    hash: "0xabcdef1234567890abcdef1234567890abcdef12",
-    type: "send",
-    status: "confirmed",
-    from: "0x1234567890abcdef1234567890abcdef12345678",
-    to: "0xfedcba0987654321fedcba0987654321fedcba09",
-    amount: "1000",
-    token: "USDC",
-    tokenSymbol: "USDC",
-    gasUsed: "65000",
-    gasPrice: "25",
-    blockNumber: 18499950,
-    confirmations: 25,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    network: "Ethereum",
-  },
-  {
-    id: "4",
-    hash: "0xfedcba0987654321fedcba0987654321fedcba09",
-    type: "approve",
-    status: "failed",
-    from: "0x1234567890abcdef1234567890abcdef12345678",
-    to: "0x1111111111111111111111111111111111111111",
-    amount: "∞",
-    token: "USDC",
-    tokenSymbol: "USDC",
-    gasUsed: "0",
-    gasPrice: "20",
-    blockNumber: 0,
-    confirmations: 0,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
-    network: "Ethereum",
-  },
-];
-
-const truncateAddress = (address: string) => {
+const truncateAddress = (address?: string) => {
+  if (!address) return "—";
+  if (address.length <= 10) return address;
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-const truncateHash = (hash: string) => {
+const truncateHash = (hash?: string) => {
+  if (!hash) return "—";
+  if (hash.length <= 18) return hash;
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
 };
 
-const copyToClipboard = (text: string) => {
-  navigator.clipboard.writeText(text);
+const copyToClipboard = (text?: string) => {
+  if (!text) return;
+  try {
+    navigator.clipboard?.writeText(String(text));
+  } catch {
+    /* ignore clipboard errors */
+  }
 };
 
 const getStatusIcon = (status: string) => {
@@ -112,20 +62,29 @@ const getStatusIcon = (status: string) => {
 
 const getTypeIcon = (type: string) => {
   switch (type) {
-    case "send":
-      return <ArrowUpRight className="w-4 h-4 text-red-500" />;
-    case "receive":
+    case "addTransaction":
       return <ArrowDownLeft className="w-4 h-4 text-green-500" />;
-    case "swap":
+    case "transferOwnership":
+      return <ArrowUpRight className="w-4 h-4 text-red-500" />;
+    case "approveSender":
       return <RefreshCw className="w-4 h-4 text-blue-500" />;
-    case "approve":
+    case "approveRecipient":
       return <CheckCircle className="w-4 h-4 text-purple-500" />;
     default:
       return <ArrowUpRight className="w-4 h-4 text-gray-500" />;
   }
 };
 
-const formatTimeAgo = (date: Date) => {
+const formatTimeAgo = (dateInput: Date | string | number) => {
+  const date =
+    dateInput instanceof Date
+      ? dateInput
+      : typeof dateInput === "number"
+      ? new Date(dateInput)
+      : new Date(String(dateInput));
+
+  if (Number.isNaN(date.getTime())) return "Unknown";
+
   const now = new Date();
   const diffInMinutes = Math.floor(
     (now.getTime() - date.getTime()) / (1000 * 60)
@@ -137,7 +96,11 @@ const formatTimeAgo = (date: Date) => {
   return `${Math.floor(diffInMinutes / 1440)}d ago`;
 };
 
-export default function TransactionHistory() {
+export default function TransactionHistory({
+  transactions,
+}: {
+  transactions: Transaction[];
+}) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -147,15 +110,15 @@ export default function TransactionHistory() {
           ref={scrollContainerRef}
           className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
         >
-          {mockTransactions.map((tx) => (
+          {transactions?.map((tx) => (
             <div
-              key={tx.id}
+              key={tx.txHash}
               className="flex items-center justify-between p-3 rounded-lg  border border-gray-200 dark:border-[#212125] hover:bg-gray-50 dark:hover:bg-[#111113] transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   {getTypeIcon(tx.type)}
-                  {getStatusIcon(tx.status)}
+                  {getStatusIcon("confirmed")}
                 </div>
 
                 <div className="space-y-1">
@@ -163,30 +126,21 @@ export default function TransactionHistory() {
                     <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
                       {tx.type}
                     </span>
-                    <Badge
-                      variant={
-                        tx.status === "confirmed"
-                          ? "default"
-                          : tx.status === "pending"
-                          ? "secondary"
-                          : "destructive"
-                      }
-                      className="text-xs"
-                    >
-                      {tx.status}
+                    <Badge variant={"default"} className="text-xs">
+                      {"confirmed"}
                     </Badge>
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <button
-                      onClick={() => copyToClipboard(tx.hash)}
+                      onClick={() => copyToClipboard(tx.txHash)}
                       className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
                     >
-                      {truncateHash(tx.hash)}
+                      {truncateHash(tx.txHash)}
                       <Copy className="w-3 h-3" />
                     </button>
                     <span>•</span>
-                    <span>{formatTimeAgo(tx.timestamp)}</span>
+                    <span>{formatTimeAgo(tx.createdAt)}</span>
                   </div>
 
                   <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -210,20 +164,20 @@ export default function TransactionHistory() {
 
               <div className="text-right space-y-1">
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  {tx.type === "send" ? "-" : tx.type === "receive" ? "+" : ""}
-                  {tx.amount} {tx.tokenSymbol}
+                  {tx.amount} {tx.currency}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Gas:{" "}
-                  {(Number.parseFloat(tx.gasUsed) *
-                    Number.parseFloat(tx.gasPrice)) /
-                    1e9}{" "}
-                  ETH
+                  BSCS 4B
                 </div>
-                <button className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1">
+                <a
+                  href={`https://sepolia.basescan.org/tx/${tx.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                >
                   View on Explorer
                   <ExternalLink className="w-3 h-3" />
-                </button>
+                </a>
               </div>
             </div>
           ))}
