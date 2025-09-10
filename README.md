@@ -166,4 +166,4 @@ YES, i know, "receivers" concept is out of logic — there shouldn't even be a r
 
 - Project: University tryouts for Raite Hackathon
 - Inspiration: Senator Bam Aquino's blockchain budget transparency idea
-- Author / Team: (project owner)
+- Author / Team: BSCS 4B
