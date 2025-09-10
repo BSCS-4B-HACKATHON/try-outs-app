@@ -1,0 +1,40 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-34dc7f492fee7b3840a691478282f4e41f8edc84",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/BSCS4BBudgetBill.sol": "project/contracts/BSCS4BBudgetBill.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": [],
+      "viaIR": true
+    },
+    "sources": {
+      "project/contracts/BSCS4BBudgetBill.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.28;\r\n\r\ncontract BSCS4BBudgetBill {\r\n    address public owner;\r\n\r\n    struct BSCS4BBudgetBillTxn {\r\n        address from;\r\n        string senderName;\r\n        address to;\r\n        string recipientName;\r\n        uint256 amount;\r\n        string currency;\r\n        string purpose;\r\n        uint256 date;\r\n    }\r\n\r\n    BSCS4BBudgetBillTxn[] public transactions;\r\n\r\n    // mapping for quick checks + array for enumeration\r\n    mapping(address => bool) public approvedSenders;\r\n    address[] private approvedSendersList;\r\n\r\n    mapping(address => bool) public approvedRecipients;\r\n    address[] private approvedRecipientsList;\r\n\r\n    event TransactionRecorded(\r\n        uint256 indexed index,\r\n        address indexed from,\r\n        string senderName,\r\n        address indexed to,\r\n        string recipientName,\r\n        uint256 amount,\r\n        string currency,\r\n        string purpose,\r\n        uint256 date\r\n    );\r\n\r\n    event SenderApproved(address indexed who, bool approved);\r\n    event RecipientApproved(address indexed who, bool approved);\r\n\r\n    modifier onlyOwner() {\r\n        require(msg.sender == owner, \"Not owner\");\r\n        _;\r\n    }\r\n\r\n    modifier onlyApprovedSender() {\r\n        require(approvedSenders[msg.sender], \"Sender not approved\");\r\n        _;\r\n    }\r\n\r\n    constructor() {\r\n        owner = msg.sender;\r\n    }\r\n\r\n    // helper to add to array without duplicates\r\n    function _addToList(address[] storage list, address who) internal {\r\n        for (uint i = 0; i < list.length; i++) {\r\n            if (list[i] == who) return;\r\n        }\r\n        list.push(who);\r\n    }\r\n\r\n    // helper to remove (swap-pop)\r\n    function _removeFromList(address[] storage list, address who) internal {\r\n        for (uint i = 0; i < list.length; i++) {\r\n            if (list[i] == who) {\r\n                list[i] = list[list.length - 1];\r\n                list.pop();\r\n                return;\r\n            }\r\n        }\r\n    }\r\n\r\n    // owner manages allowed senders/recipients and list is kept in sync\r\n    function setApprovedSender(address who, bool approved) external onlyOwner {\r\n        if (approved) {\r\n            if (!approvedSenders[who]) {\r\n                approvedSenders[who] = true;\r\n                _addToList(approvedSendersList, who);\r\n                emit SenderApproved(who, true);\r\n            }\r\n        } else {\r\n            if (approvedSenders[who]) {\r\n                approvedSenders[who] = false;\r\n                _removeFromList(approvedSendersList, who);\r\n                emit SenderApproved(who, false);\r\n            }\r\n        }\r\n    }\r\n\r\n    function setApprovedRecipient(address who, bool approved) external onlyOwner {\r\n        if (approved) {\r\n            if (!approvedRecipients[who]) {\r\n                approvedRecipients[who] = true;\r\n                _addToList(approvedRecipientsList, who);\r\n                emit RecipientApproved(who, true);\r\n            }\r\n        } else {\r\n            if (approvedRecipients[who]) {\r\n                approvedRecipients[who] = false;\r\n                _removeFromList(approvedRecipientsList, who);\r\n                emit RecipientApproved(who, false);\r\n            }\r\n        }\r\n    }\r\n\r\n    // view helpers to enumerate approved wallets\r\n    function getApprovedSenders() external view returns (address[] memory) {\r\n        return approvedSendersList;\r\n    }\r\n\r\n    function getApprovedRecipients() external view returns (address[] memory) {\r\n        return approvedRecipientsList;\r\n    }\r\n\r\n    // convenience check (mapping is public too)\r\n    function isApprovedSender(address who) external view returns (bool) {\r\n        return approvedSenders[who];\r\n    }\r\n\r\n    function isApprovedRecipient(address who) external view returns (bool) {\r\n        return approvedRecipients[who];\r\n    }\r\n\r\n    function addTransaction(\r\n        string calldata senderName,\r\n        address to,\r\n        string calldata recipientName,\r\n        uint256 amount,\r\n        string calldata currency,\r\n        string calldata purpose,\r\n        uint256 date\r\n    ) external onlyApprovedSender returns (uint256) {\r\n        require(approvedRecipients[to], \"Recipient not approved\");\r\n\r\n        // push empty storage slot and populate to reduce stack usage\r\n        transactions.push();\r\n        uint256 idx = transactions.length - 1;\r\n        BSCS4BBudgetBillTxn storage txEntry = transactions[idx];\r\n\r\n        txEntry.from = msg.sender;\r\n        txEntry.senderName = senderName;\r\n        txEntry.to = to;\r\n        txEntry.recipientName = recipientName;\r\n        txEntry.amount = amount;\r\n        txEntry.currency = currency;\r\n        txEntry.purpose = purpose;\r\n        txEntry.date = date;\r\n\r\n        emit TransactionRecorded(\r\n            idx,\r\n            txEntry.from,\r\n            txEntry.senderName,\r\n            txEntry.to,\r\n            txEntry.recipientName,\r\n            txEntry.amount,\r\n            txEntry.currency,\r\n            txEntry.purpose,\r\n            txEntry.date\r\n        );\r\n\r\n        return idx;\r\n    }\r\n\r\n    function getTransactionCount() external view returns (uint256) {\r\n        return transactions.length;\r\n    }\r\n\r\n    function getTransaction(uint256 index) external view returns (BSCS4BBudgetBillTxn memory) {\r\n        require(index < transactions.length, \"Index OOB\");\r\n        return transactions[index];\r\n    }\r\n\r\n    function transferOwnership(address newOwner) external onlyOwner {\r\n        require(newOwner != address(0), \"zero addr\");\r\n        owner = newOwner;\r\n    }\r\n}"
+      }
+    }
+  }
+}
