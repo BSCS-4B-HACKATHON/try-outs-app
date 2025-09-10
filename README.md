@@ -1,37 +1,47 @@
 # BSCS4BBudgetBill — Tryouts Project (Raite Hackathon)
 
-Short summary
+A university tryouts project inspired by Senator Bam Aquino's "budget bill". This repo demonstrates how contract-recorded transaction metadata can improve transparency and auditability. The system records transaction metadata on-chain (it does not move real funds — only gas is consumed for on‑chain writes). The repo contains three parts:
 
-- University tryouts project inspired by Senator Bam Aquino's blockchain "budget bill".
-- The contract records transaction metadata on-chain for transparency — it does not move real money, it only records information and consumes gas for on‑chain writes.
-- This repo contains three parts:
-  - blockchain (Solidity + Hardhat) — contracts, deploy scripts, build artifacts
-  - BE (Express + services) — server that talks to the contract and stores records
-  - FE (React/Vite) — frontend to interact with the contract and server
+- `blockchain` — Solidity contracts, Hardhat config and deploy scripts
+- `BE` — Express backend, MongoDB persistence and contract relayer services
+- `FE` — React/Vite frontend
 
-What this project does
+---
 
-- Authorized senders and recipients are recorded on the contract.
-- Transactions (metadata) are recorded on-chain or relayed to the contract; you can also persist transaction records in the BE database for fast querying.
-- The contract + off‑chain index allow public auditing of recorded entries for transparency.
+## What this project does
 
-Repository layout (relevant paths)
+- Stores authorized senders and recipients on-chain.
+- Records transaction metadata on-chain (and/or in the BE DB) for fast querying and public audit.
+- Uses a relay flow for UX simplicity: payment → wait for receipt → relay record to BE which can persist and/or write to contract.
+
+> Note: this records metadata only. It does not transfer fiat or token balances unless you explicitly call a payable function.
+
+---
+
+## Repo layout (important paths)
 
 - idea_proto/blockchain
   - contracts/BSCS4BBudgetBill.sol
   - scripts/deploy.ts
-  - artifacts/ (build output)
+  - artifacts/ (Hardhat build artifacts)
 - idea_proto/BE
-  - src/controllers, src/services, src/blockchain/artifacts (ABI can be put here)
+  - src/controllers, src/services
+  - src/blockchain/artifacts (put BE ABI here)
 - idea_proto/FE
-  - src/blockchain/abi (FE ABI goes here)
+  - src/blockchain/abi (put FE ABI here)
   - src/pages, src/components
 
-Environment (.env) files
+Deployed/compiled ABI (source):
 
-- Place .env in the root of each of blockchain, BE and FE folders.
+- idea_proto/blockchain/artifacts/contracts/BSCS4BBudgetBill.sol/BSCS4BBudgetBill.json
 
-BE (.env)
+---
+
+## Environment variables
+
+Place a `.env` in the root of each of `blockchain`, `BE`, and `FE`.
+
+BE `.env`:
 
 - PRIVATE_KEY=
 - CONTRACT_ADDRESS=
@@ -41,126 +51,119 @@ BE (.env)
 - PORT=
 - MONGO_URI=
 
-FE (.env)
+FE `.env`:
 
 - VITE_CONTRACT_ADDRESS=
 - VITE_ABI_PATH=
 - VITE_RPC_URL=
 
-blockchain (.env)
+blockchain `.env`:
 
 - PRIVATE_KEY=
 - CONTRACT_ADDRESS=
 - SENDER_PRIVATE_KEY=
 - RPC_URL=
 
-ABI files
+You can replace the ABI JSON on BE:
 
-- You can replace ABI JSON on BE:
-  - idea_proto/BE/src/blockchain/artifacts
-- You can replace ABI JSON on FE:
-  - idea_proto/FE/src/blockchain/abi
-- Build artifact (source ABI) location after compile:
-  - idea_proto/blockchain/artifacts/contracts/BSCS4BBudgetBill.sol/BSCS4BBudgetBill.json
+- `idea_proto/BE/src/blockchain/artifacts`
 
-Build, deploy and run
+You can replace the ABI JSON on FE:
 
-1. Install dependencies
+- `idea_proto/FE/src/blockchain/abi`
 
-   - For each folder (blockchain, BE, FE) run:
-     - npm install
+---
 
-2. Compile contract (in idea_proto/blockchain)
+## Build, deploy & verify
+
+1. Install deps (in each folder):
+
+   - npm install
+
+2. Compile contract (inside `idea_proto/blockchain`):
 
    - npx hardhat compile
 
-3. Deploy
+3. Deploy:
 
-   - Edit idea_proto/blockchain/.env with PRIVATE_KEY and RPC_URL
-   - npx hardhat run scripts/deploy.ts --network <your-network>
-   - The deploy script prints the deployed address — copy it to BE/.env and FE/.env as CONTRACT_ADDRESS / VITE_CONTRACT_ADDRESS.
+   - Edit `idea_proto/blockchain/.env` with PRIVATE_KEY and RPC_URL
+   - npx hardhat run scripts/deploy.ts --network <network>
+   - Copy deployed address to BE/FE env (`CONTRACT_ADDRESS` / `VITE_CONTRACT_ADDRESS`)
 
-4. Verify contract on Basescan (if needed)
-   - Use the exact Standard‑Input‑JSON that Hardhat produced. Extract it with a script:
-     - node -e 'const fs=require("fs");const p="artifacts/build-info";const files=fs.readdirSync(p);if(!files.length)throw new Error("no build-info");const bi=JSON.parse(fs.readFileSync(`${p}/${files[0]}`,"utf8"));fs.writeFileSync("standard-input.json",JSON.stringify(bi.input,null,2));console.log("wrote standard-input.json from",files[0]);'
-   - Upload the generated `standard-input.json` to Basescan verifier (choose "Standard JSON Input").
-   - Alternative: use Hardhat verify plugin if configured:
-     - npx hardhat verify --network base_sepolia <DEPLOYED_ADDRESS>
+4. Verify on Basescan (Standard JSON Input)
+   - Extract Hardhat standard input JSON:
+     ```
+     node -e 'const fs=require("fs");const p="artifacts/build-info";const files=fs.readdirSync(p);if(!files.length)throw new Error("no build-info");const bi=JSON.parse(fs.readFileSync(`${p}/${files[0]}`,"utf8"));fs.writeFileSync("standard-input.json",JSON.stringify(bi.input,null,2));console.log("wrote standard-input.json from",files[0]);'
+     ```
+   - Upload the produced `standard-input.json` in Basescan's "Standard JSON Input" verifier.
 
-Helpful note about the provided extract step
+---
 
-- The repo also includes a convenience script / mention: run `node extractInput.js` (or use the one-liner above) to produce `standard-input.json` used by the explorer UI.
+## Run (dev)
 
-ABI source to copy to BE/FE
+Start BE and FE in separate terminals:
 
-- idea_proto/blockchain/artifacts/contracts/BSCS4BBudgetBill.sol/BSCS4BBudgetBill.json
-  - Copy the ABI JSON part to:
-    - idea_proto/BE/src/blockchain/artifacts
-    - idea_proto/FE/src/blockchain/abi
+- idea_proto/BE
+  - npm run dev
+- idea_proto/FE
+  - npm run dev
 
-Running the app
+---
 
-- Start BE and FE simultaneously for development:
-  - In idea_proto/BE: npm run dev
-  - In idea_proto/FE: npm run dev
-- Or run them separately in different terminals.
+## Backend routes (BE)
 
-Backend routes (BE)
-
-- POST /approve-sender — approve a wallet as sender
-- POST /approve-recipient — approve a wallet as recipient
-- POST /add-transaction — (not used for tryouts; kept for compatibility)
-- POST /relay-add-transaction — recommended: relay the transaction data (server will write to contract or DB)
-- GET /transactions — list of transactions (DB)
-- GET /transaction/:index — read one contract-stored transaction (by index)
-- GET /transaction-count — number of transactions stored on contract
+- POST /approve-sender — approve a wallet to send
+- POST /approve-recipient — approve a recipient
+- POST /add-transaction — (legacy; not used in tryouts)
+- POST /relay-add-transaction — recommended relay entry used in tryouts
+- GET /transactions — list DB transactions
+- GET /transaction/:index — read on-chain transaction by index
+- GET /transaction-count — number of on-chain transactions
 - GET /approved-senders — list approved senders
 - GET /approved-recipients — list approved recipients
-- POST /transfer-ownership — transfer admin key in contract
+- POST /transfer-ownership — transfer contract admin
 
-Record flow and txHash
+---
 
-- A contract cannot know its own transaction hash during execution. Two practical approaches:
-  1. Two‑tx flow (used here): user sends payment (or other tx), waits for receipt, then call addTransaction / relay endpoint with receipt.transactionHash. This produces two on‑chain writes (payment and separate record), or one on‑chain write + DB record if you use the server relayer.
-  2. Off‑chain indexing: emit events from the contract and index logs off‑chain (explorer, provider). This avoids storing txHash in storage but requires log scanning.
+## Notes on txHash & flow
+
+- A contract cannot know its own tx hash during execution. Common flows:
+  1. Two‑TX flow (used here): user sends a payment (or other tx). After `receipt = tx.wait()` the client posts `receipt.transactionHash` to `/relay-add-transaction` (server saves to DB or writes a second on‑chain record).
+  2. Event indexing: emit events and index logs off‑chain (preferred for single‑tx UX but needs indexing infra).
 - For tryouts we used relay-add-transaction and DB storage to keep UX simple and we don't know how to get Tx hashes from the smart contract yet.
 
-Database
+---
 
-- BE persists transaction records to MongoDB because we still don't know how to fetch all Tx hashes from the smart contract. Ensure MONGO_URI (or mongo_uri in some configs) is set in the BE .env.
+## Database
 
-Approval model
+- BE persists records to MongoDB because we don't know how to get Tx hashes in the smart contract yet. Set `MONGO_URI` in the BE `.env`.
 
-- The contract requires approved senders and recipients. Only approved entities can add transactions and recipients to receive transactions this limits who can record data and simulates government-authorized participants.
+---
 
-UI notes
+## Approval model
 
-- The frontend is intentionally designed to not feel like a government UI.
-- There is a "Refresh lists" feature, "Approve" flow, and transaction history UI that links to Basescan for each tx.
+- Only approved senders and approved recipients can be used in transactions. This models authorized government actors.
 
-Important: does this move real funds?
+To approve a wallet, go to: `BASE_URL/approve`
 
-- No — this project records metadata only. It does not transfer real money or on-chain currency unless you explicitly call a payable contract function or send funds separately. Gas fees still apply for on‑chain writes.
+---
 
-Design quirk
+## Design quirk (honest note)
 
-- YES, the "receivers" concept is slightly awkward — the contract stores a recipient even though the transaction is recorded on the contract itself. We realized this late but kept the design as-is because we passed.
+YES, i know, "receivers" concept is out of logic — there shouldn't even be a receiver since you are sending the transaction on the smart contract itself. We realized it late but we passed, so yeah, not changing anything here.
 
-Where to find the deployed contract & deploy info in this repo
+---
 
-- Contract source (used for the tryouts): idea_proto/blockchain/contracts/BSCS4BBudgetBill.sol
-- Deploy script used: idea_proto/blockchain/scripts/deploy.ts
-- If you need the exact ABI JSON to drop into FE/BE:
-  - idea_proto/blockchain/artifacts/contracts/BSCS4BBudgetBill.sol/BSCS4BBudgetBill.json
+## Troubleshooting
 
-Quick troubleshooting
+- Explorer shows "Similar Match" during verification → upload Hardhat `standard-input.json` (see Extract step).
+- ABI mismatch errors → ensure BE/FE use the same ABI JSON that matches the deployed bytecode.
+- If stored `txHash` is `0x00...` → client did not supply `receipt.transactionHash`; ensure the client waits for the receipt and supplies it.
 
-- If the explorer shows a "Similar Match" during verification, use the Standard-Input-JSON (build-info) produced by Hardhat.
-- If addTransaction call fails due to ABI mismatch, ensure your BE/FE ABI matches the deployed contract ABI.
-- If txHash stored is zero (0x00...), check that the client actually provided receipt.transactionHash — we default to zero bytes when missing.
+---
 
-Contact / Credits
+## Credits
 
 - Project: University tryouts for Raite Hackathon
-- Inspiration: Senator Bam Aquino's blockchain idea for budget transparency
-- Author: (project owner)
+- Inspiration: Senator Bam Aquino's blockchain budget transparency idea
+- Author / Team: (project owner)
